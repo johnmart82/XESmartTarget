@@ -1,6 +1,5 @@
 ﻿using Microsoft.SqlServer.XEvent.Linq;
 using NLog;
-using SmartFormat;
 using System;
 using System.Collections.Generic;
 using System.Data;
@@ -32,7 +31,7 @@ namespace XESmartTarget.Core.Responses
             set
             {
                 _outputFile = value;
-                _formattedOutputFile = Smart.Format(_outputFile, Tokens);
+                _formattedOutputFile = SmartFormatHelper.Format(_outputFile, Tokens);
             }
         }
 
@@ -77,12 +76,16 @@ namespace XESmartTarget.Core.Responses
 
         private void WriteToFile(bool writeHeaders)
         {
+            // Put columns in the correct order
+            string[] outputColumnNames = (
+                from col in xeadapter.OutputColumns
+                where eventsTable.Columns.Contains(col.Alias)
+                select col.Alias
+            ).ToArray();
+
             lock (EventsTable)
             {
-                DataTableCSVAdapter adapter = new DataTableCSVAdapter(EventsTable)
-                {
-                    OutputFile = this._formattedOutputFile
-                };
+                DataTableCSVAdapter adapter = new DataTableCSVAdapter(EventsTable, _formattedOutputFile, outputColumnNames);
                 adapter.WriteToFile(writeHeaders);
                 EventsTable.Rows.Clear();
             }
